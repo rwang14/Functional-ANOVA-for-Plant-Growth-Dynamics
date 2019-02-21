@@ -1,0 +1,169 @@
+
+## Function 1: Sample.
+sample = function(image, RowSample = 1, ColSample = 1){
+	row.index = seq(1, dim(image)[1], RowSample) 
+	col.index = seq(1, dim(image)[2], ColSample)   
+	image1 = image[row.index, col.index, ]
+	return(image1)
+}
+
+sampleMatrix = function(M, RowSample = 1, ColSample = 1){
+	row.index = seq(1, dim(M)[1], RowSample) 
+	col.index = seq(1, dim(M)[2], ColSample)   
+	M1 = M[row.index, col.index]
+	return(M1)
+}
+
+## Function 2: RGB Convert to Gray
+Color2Gray = function(image, weight = c(0.299,0.587,0.114)){
+#weight should be positive
+	weight = weight / sum(weight)
+	image1 = image[, , 1] * weight[1] + image[, , 2] * weight[2] + image[, , 3] * weight[3]
+	return(image1)
+}
+
+## Function 3: change color. mask 5/12 to 7/12 columns not changed
+
+ColorB = function(image, colThreshold = 0.5, colTol = c(5, 5), EGThreshold = 0.075, changefromub = rep(0.1, 3), changeto = c(1, 1, 1)){
+	flas = (image[, , 1] < changefromub[1]) & (image[, ,2] < changefromub[2])  & (image[, ,3] < changefromub[3])
+	N = dim(image)
+	flas[ , floor(5 * N[2] / 12) : floor(7 * N[2] / 12) ] = FALSE
+	index0 = which((colMeans(flas) > colThreshold) == 1)
+	index = c(max(index0[index0 < N[2] / 2]) + colTol[1], min(index0[index0 > N[2] / 2]) - colTol[2])
+	flas[, c(1 : index[1])] = TRUE
+	flas[, c(index[2] : N[2])] = TRUE
+	imageR = image[, , 1]; imageG = image[, , 2]; imageB = image[, , 3]
+	#imagesum = imageR + imageG + imageB
+	#EG = (2 * imageG - imageR - imageB) / sqrt(6)
+	#flasGreen = (EG < EGThreshold * imagesum)
+	#flasGreen[, c((index[1] + 1) : (index[2] - 1))] = FALSE
+	#flas = flas & flasGreen
+	imageR[flas] = changeto[1]
+	imageG[flas] = changeto[2]
+	imageB[flas] = changeto[3]
+	image[, , 1] = imageR; image[, , 2] = imageG; image[, , 3] = imageB
+	res = list(lb = index[1], rb = index[2], c = image)
+	return(res)
+}
+
+
+ColorG = function(image, rowThreshold = 0.007, block = 5, Tol = 2, Bthreshold = 60 / 255, EGThreshold = 0.1, weight = c(-1, 2, -1), changeto = c(1, 1, 1)){
+	weight = weight / sqrt(sum(weight^2))
+	imageweight = image[, , 1] * weight[1] + image[, , 2] * weight[2] + image[, , 3] * weight[3]
+	imagesum = image[, , 1] + image[, , 2] + image[, , 3]
+	flas = (imageweight > EGThreshold * imagesum) * (imagesum > Bthreshold)
+	rowMean0 = rowMeans(flas)
+	length0 = length(rowMean0)
+	rowmeanblock = rowMean0
+	for (i in 1 : block){
+		temp1 = c(rep(0, i), rowMean0)[1 : length0]
+		temp2 = c(rowMean0, rep(0, i))[(i + 1) : (length0 + i)]
+		rowmeanblock = rowmeanblock + temp1 + temp2
+	}
+	rowmeanblock = rowmeanblock / (2 * block + 1)
+	index0 = which((rowmeanblock > rowThreshold) == 1)
+	if (length(index0) > 0){
+		index = c(min(index0) - block - Tol, max(index0) + block + Tol)
+
+		N = dim(image)
+		flas[, 1 : floor(5 * N[2] / 12)] = 0
+		flas[, floor(7 * N[2] / 12) : N[2]] = 0
+		flas[1 : (index[1] - 20), ] = 0
+		flas[(index[2] + 20) : N[1], ] = 0
+		imageR = image[, , 1]; imageG = image[, , 2]; imageB = image[, , 3]
+		imageR[flas == 1] = changeto[1]
+		imageG[flas == 1] = changeto[2]
+		imageB[flas == 1] = changeto[3]
+		image[, , 1] = imageR; image[, , 2] = imageG; image[, , 3] = imageB
+		res = list(uppb = index[1], lowb = index[2], rowmean = rowMeans(flas), c = image)
+	} else {
+		res = list(c = image)
+	}
+	return(res)
+}
+
+
+ColorG1 = function(image, Bthreshold = 60 / 255, EGThreshold = 0.1, weight = c(-1, 2, -1), changeto = c(1, 1, 1)){
+	weight = weight / sqrt(sum(weight^2))
+	imageweight = image[, , 1] * weight[1] + image[, , 2] * weight[2] + image[, , 3] * weight[3]
+	imagesum = image[, , 1] + image[, , 2] + image[, , 3]
+	flas = (imageweight > EGThreshold * imagesum) * (imagesum > Bthreshold)
+
+	N = dim(image)
+	flas[, 1 : floor(5 * N[2] / 12)] = 0
+	flas[, floor(7 * N[2] / 12) : N[2]] = 0
+	imageR = image[, , 1]; imageG = image[, , 2]; imageB = image[, , 3]
+	imageR[flas == 1] = changeto[1]
+	imageG[flas == 1] = changeto[2]
+	imageB[flas == 1] = changeto[3]
+	image[, , 1] = imageR; image[, , 2] = imageG; image[, , 3] = imageB
+	res = list(rowmean = rowMeans(flas), c = image)
+	return(res)
+}
+
+## also possible to get hue, satuation,...
+#### Function 3: Histgram...
+
+## Function: Binarization
+
+imageBinary = function(image, weight = c(-1, 2, -1), threshold1 = 30 / 255, threshold2 = 0.075){
+	weight = weight / sqrt(sum(weight^2))
+	imagesum = image[, , 1] + image[, , 2] + image[, , 3]
+	temp1 = 1 * (imagesum > threshold1)
+	imageweight = image[, , 1] * weight[1] + image[, , 2] * weight[2] + image[, , 3] * weight[3] 
+	temp2 = 1 * (imageweight > threshold2 * imagesum)
+	return(temp1 * temp2)
+}
+
+### Function: Dilation
+
+dilation = function(image, mask = matrix(1, 3, 3) ){
+	M=dim(image)
+	image.background = matrix ( 0, M[1] , M[2] )
+	mask.shift=( dim(mask)[1] - 1 ) / 2
+	for (i in (-mask.shift) : (mask.shift) ){
+		for (j in ( -mask.shift ) : ( mask.shift ) ){
+			if (mask[ (i + mask.shift + 1) , ( j + mask.shift + 1) ] == 1 ) {
+				image.background[ ( (1+mask.shift) : (M[1]-mask.shift) ),( (1+mask.shift) : (M[2]-mask.shift) ) ] = 
+				image.background[ ( (1+mask.shift) : (M[1]-mask.shift) ),( (1+mask.shift) : (M[2]-mask.shift) ) ]  | 
+				image[ ( (1+mask.shift) : (M[1]-mask.shift) + i),( (1+mask.shift) : (M[2]-mask.shift) +j) ]  
+			}
+		}
+	}
+	return(1 * image.background)
+}
+
+### Function: Erosion
+
+erosion = function(image, mask = matrix(1, 3, 3) ){
+	M=dim(image)
+	image.background = matrix ( 1, M[1] , M[2] )
+	mask.shift=( dim(mask)[1] - 1 ) / 2
+	for (i in (-mask.shift) : (mask.shift) ){
+		for (j in ( -mask.shift ) : ( mask.shift ) ){
+			if (mask[ (i + mask.shift + 1) , ( j + mask.shift + 1) ] == 1 ) {
+				image.background[ ( (1+mask.shift) : (M[1]-mask.shift) ),( (1+mask.shift) : (M[2]-mask.shift) ) ] = 
+				image.background[ ( (1+mask.shift) : (M[1]-mask.shift) ),( (1+mask.shift) : (M[2]-mask.shift) ) ] & 
+				image[ ( (1+mask.shift) : (M[1]-mask.shift) + i),( (1+mask.shift) : (M[2]-mask.shift) +j) ]  
+			}
+		}
+	}
+	image.background = 1 * image.background
+	image.background[1 : mask.shift,]=0
+	image.background[(M[1] - mask.shift + 1) : M[1], ]=0
+	image.background[, 1 : mask.shift]=0
+	image.background[, (M[2] - mask.shift + 1) : M[2]]=0
+	return(image.background)
+}
+
+### Refit plants outside boundary
+
+imageBinaryBound = function(image, ave = RGBave, std = RGBstd, thresholdBlack = 30 / 255, scale = 0.5, boundary = bound){
+	image[, c((boundary[1] + 1) : (boundary[2] - 1)), ] = 0
+	imagesum = image[, , 1] + image[, , 2] + image[, , 3]
+	temp1 = 1 * (imagesum > thresholdBlack)
+	temp2 = (image[, , 1] < (ave[1] + scale * std[1]) ) & (image[, , 1] > (ave[1] - scale * std[1]) ) &
+		  (image[, , 2] < (ave[2] + scale * std[2]) ) & (image[, , 2] > (ave[2] - scale * std[2]) ) &
+		  (image[, , 3] < (ave[3] + scale * std[3]) ) & (image[, , 3] > (ave[3] - scale * std[3]) )
+	return(temp1 * temp2)
+}
