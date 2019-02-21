@@ -114,7 +114,7 @@ fanova_mean = function(Y, regular = 1, tt, K.int, n, order = 4, total.time, Days
     para[,i] = BS.eval %*% bhat[((i-1)*K+1):((i-1)*K+K)]
   }
   
-  #Create a dummy table to check X
+  #Creating a dummy table to check X
   combination = expand.grid(X)
   uniq_comb = unique(combination)
   dummy_comb = data.frame(trt_comb = uniq_comb, cat = unique(model.matrix(as.formula(formula),data = uniq_comb)))
